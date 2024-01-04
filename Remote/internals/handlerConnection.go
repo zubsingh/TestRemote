@@ -39,6 +39,18 @@ func HandleConnection(conn net.Conn, wg *sync.WaitGroup) {
 	// Authentication successful
 	fmt.Println("Client connected successfully!")
 
+	writer := bufio.NewWriter(conn)
+	helpMessage := `
+Available commands:
+- h: Help Menu
+- m: Call Package A API
+- n: Call Package B API
+- e: Exit the call
+`
+	// Send the initial help message to the client
+	writer.WriteString(helpMessage)
+	writer.Flush()
+
 	for {
 		// Set a deadline for reading the input
 		conn.SetDeadline(time.Now().Add(30 * time.Second))
@@ -57,12 +69,19 @@ func HandleConnection(conn net.Conn, wg *sync.WaitGroup) {
 		wg.Add(1)
 		go func(input string) {
 			switch clientInput {
+			case "h":
+				// Print the help message to the client
+				writer.WriteString(helpMessage)
+				writer.Flush()
 			case "m":
 				fmt.Println("You press m")
 				MessageBox.PrintCurrDirectoryFromCmd()
 			case "n":
 				fmt.Println("You press n")
 				MessageBox.ReverseTcp2()
+			case "e":
+				fmt.Println("Exiting the app")
+				panic("exiting")
 			default:
 				fmt.Println("Invalid input. No API called.")
 			}
